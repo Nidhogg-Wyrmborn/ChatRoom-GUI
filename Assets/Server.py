@@ -202,11 +202,13 @@ class Server:
 				conn.sendall(f"<|ACK|>{self.name}<|END_ACK|>".encode("utf-8"))
 				self.print("[_client_handle] Sent name to client")
 				conn.close()
+				return
 
 			data = dict(re.findall(self.kv_pattern, message))
 			client_uname, client_color = self.handle_settingChange(data, conn, client_uname, client_color)
 
-			while not self.running:
+			while self.running:
+				self.print("[_client_handle] Waiting for data!")
 				data = conn.recv(1024)
 
 				if not data:
