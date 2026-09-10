@@ -52,8 +52,7 @@ class ServerUI(GUI.GUI):
         threading.Thread(target=self._restart, args=(), daemon=True).start()
 
     def _server_name_popup(self):
-        self.display_system_message("[CONSOLE] Not Implemented Yet!")
-        server_name = "custom_name"# popup
+        server_name = simpledialog.askstring("Server Name", f"Please enter a new Server name")
         self.server.set_name(server_name)
 
     def _restart(self):
