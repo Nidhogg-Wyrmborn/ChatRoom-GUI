@@ -4,6 +4,7 @@ try:
     from Assets.utils import check_allowed_values, ask_dropdown, create_packet
     import threading
     import re
+    from Assets import GUI
     from tkinter import ttk, messagebox, simpledialog
     from Assets.Ansi_Text_Box import ANSIText
 except ImportError as IE:
@@ -12,23 +13,17 @@ except ImportError as IE:
     quit()
 
 
-class ClientUI:
+class ClientUI(GUI.GUI):
     def __init__(self, root: tk.Tk, client: Client.Client, uName: str):
-        self.root = root
         self.client = client
         self.version = self.client.VERSION
         self.uName = uName
-        self.root.title("Client Interface")
-        self.root.geometry("600x450")
-        self.root.minsize(400,300)
         self.server_commands = ["No server connected"]
         self.command2packet = {}
         self.aServer = {}
         self.color = "white"
-        self.ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-
-        self._create_menu_bar()
-        self._create_widgets()
+        super().__init__(root, "Client")
+        self.root.title("Client")
 
     def _create_menu_bar(self):
         menubar = tk.Menu(self.root)

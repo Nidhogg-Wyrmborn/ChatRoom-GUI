@@ -17,13 +17,12 @@ try:
 except ImportError as IE:
     raise IE
 
-sh.enable_proxy()
-
 class Server:
 
 	VERSION = "0.1.0" # Release.Major.Minor
 
 	def __init__(self, host: str = "0.0.0.0", port: int = 65242):
+		self.redirect()
 		self.host = host
 		self.port = port
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -43,8 +42,7 @@ class Server:
 			#"blue": Fore.BLUE,
 			"barny the dinosaur purple": Fore.MAGENTA,
 			"cyan": Fore.CYAN,
-			"white": Fore.WHITE,
-			"none": ""
+			"white": Fore.WHITE
 		}
 
 		# a dictionary of commands this server accepts and the packet it expects:
@@ -61,11 +59,22 @@ class Server:
 			"uname": create_packet_template("uname"),
 		}
 
+	def redirect(self, target=None):
+		if target == None:
+			self.redirected = False
+			self.redirect2 = lambda *kwargs: print(*kwargs)
+		else:
+			self.redirected = True
+			self.redirect2 = target
+
+	def print(self, *kwargs):
+		self.redirect2(*kwargs)
+
 	def start(self, stop_event):
 		self.socket.bind((self.host, self.port))
 		self.socket.listen(1)
 		self.socket.settimeout(1.0)
-		print(f"[SERVER] Listening on {self.host}:{self.port}...")
+		self.print(f"[SERVER] Listening on {self.host}:{self.port}...")
 
 		ah = threading.Thread(target=self._accept_handle, args=(self.stop_signal,), daemon=True)
 		ah.start()
@@ -76,51 +85,47 @@ class Server:
 		try:
 			while self.running:
 				if stop_event.is_set():
-					print("[SERVER] Stop Event Detected!")
+					self.print("[SERVER] Stop Event Detected!")
 					self.stop()
 		except KeyboardInterrupt:
-			print(f"[SERVER] KeyboardInterrupt Detected!")
+			self.print(f"[SERVER] KeyboardInterrupt Detected!")
 			self.stop()
 
-		print(f"[SERVER] Ending Existing connections!")
+		self.print(f"[SERVER] Ending Existing connections!")
 		self.stop_signal.set()
 		for addr in self.clients:
-			print(f"[SERVER] Waiting for {addr}")
+			self.print(f"[SERVER] Waiting for {addr}")
 			self.clients[addr][0].join()
 
-		print("[SERVER] Waiting for _accept_handle")
+		self.print("[SERVER] Waiting for _accept_handle")
 		ah.join()
 
-		print("[SERVER] Waiting for _broadcast_message")
+		self.print("[SERVER] Waiting for _broadcast_message")
 		bm.join()
 
-		print(f"[SERVER] Connection closed.")
+		self.print(f"[SERVER] Connection closed.")
 		self.socket.close()
 
 		for log in self.logs:
-			print(log)
+			self.print(log)
 
 	def _accept_handle(self, stop_event):
-		sh.redirect()
 		while self.running:
 			try:
 				conn, addr = self.socket.accept()
-				print(f"[SERVER] Connection from {addr}")
+				self.print(f"[SERVER] Connection from {addr}")
 				self.clients[addr] = [threading.Thread(target=self._client_handle, args=(stop_event, conn, addr,), daemon=True), conn]
 				self.clients[addr][0].start()
 			except socket.timeout:
 				# server timed out (DO NOT PRINT TO LOG FOR THE LOVE OF SPAGHETTI)
-				# print(f"[SERVER] Listen Timeout")
+				# self.print(f"[SERVER] Listen Timeout")
 				continue
 			except Exception as e:
 				if self.running:
-					print(f"[SERVER] ERROR:\n{e}")
+					self.print(f"[SERVER] ERROR:\n{e}")
 					self.stop()
 				else:
 					pass
-		log = sh.stop_redirect()
-		with self.log_lock:
-			self.logs.append('[_accept_handle] logs:\n- ' + log.replace('\n[','\n- ['))
 
 	def _broadcast_message(self, stop_event):
 		while self.running:
@@ -139,68 +144,71 @@ class Server:
 					for addr in to_remove:
 						del self.clients[addr]
 
+	def handle_settingChange(self, data, conn, client_uname, client_color):
+		if "VERSION" in data:
+			if not version_check(self.VERSION, data.get("VERSION")):
+				conn.sendall(("<|EOF|>" + Fore.RED + "[SERVER] INVALID VERSION").encode("utf-8"))
+				conn.close()
+				raise Exception("BAD VERSION")
+		if "UNAME" in data:
+			client_uname = data.get("UNAME")
+			if "COLOR" not in data:
+				conn.sendall(("<|ACK|>" + Fore.GREEN + "[SERVER] Name changed successfully").encode("utf-8"))
+				self.print(f"[_client_handle] Sent Acknowledge for name change (success)")
+		if "COLOR" in data:
+			t_color = data.get("COLOR")
+			if t_color in self.colors:
+				client_color = t_color
+				if "UNAME" not in data:
+					conn.sendall(("<|ACK|>" + Fore.GREEN + "[SERVER] Color changed successfully").encode("utf-8"))
+					self.print(f"[_client_handle] Sent Acknowledge for color change (success)")
+			else:
+				if "UNAME" not in data:
+					conn.sendall(("<|ACK|>" + Fore.RED + "[SERVER] Invalid color selected").encode("utf-8"))
+					self.print(f"[_client_handle] Sent Acknowledge for color change (Invalid)")
+		if "UNAME" in data and "COLOR" in data and "VERSION" in data:
+			ackCode = "<|ACK|>"
+			for i, k in enumerate(self.command2packets):
+				comm = self.command2packets[k]['command']
+				packet = self.command2packets[k]['template']
+				ackCode += f"{',' if i != 0 else ''}{comm}:{packet}"
+			ackCode += "<|END_ACK|>"
+			conn.sendall(ackCode.encode("utf-8"))
+			self.print(f"[_client_handle] Sent Acknowledge for setting change")
+			with self.message_lock:
+				self.message_queue.append(f"{self.colors['green']}{client_uname} has joined the chat!")
+		return client_uname, client_color
+
 	def _client_handle(self, stop_event, conn, addr):
-		sh.redirect()
-		print(f"[_client_handle] started for {addr[0]}:{addr[1]}")
+		self.print(f"[_client_handle] started for {addr[0]}:{addr[1]}")
 		client_color = "none"
 		client_uname = "Anonymous"
 		try:
+			data = conn.recv(1024)
+			message = data.decode("utf-8")
+			data = dict(re.findall(self.kv_pattern, message))
+			client_uname, client_color = self.handle_settingChange(data, conn, client_uname, client_color)
 			while not stop_event.is_set():
 				data = conn.recv(1024)
 				if not data:
 					break
 				message = data.decode("utf-8")
-				print(f"[_client_handle] Received: {message}")
+				self.print(f"[_client_handle] Received: {message}")
 
 				data = dict(re.findall(self.kv_pattern, message))
 				if len(data) == 0:
 					with self.message_lock:
 						self.message_queue.append(f"{self.colors[client_color]}{client_uname}: " + message)
 				else:
-					if "VERSION" in data:
-						if not version_check(self.VERSION, data.get("VERSION")):
-							conn.sendall(("<|EOF|>" + Fore.RED + "[SERVER] INVALID VERSION").encode("utf-8"))
-							conn.close()
-							raise Exception("BAD VERSION")
-					if "UNAME" in data:
-						client_uname = data.get("UNAME")
-						if "COLOR" not in data:
-							conn.sendall(("<|ACK|>" + Fore.GREEN + "[SERVER] Name changed successfully").encode("utf-8"))
-							print(f"[_client_handle] Sent Acknowledge for name change (success)")
-					if "COLOR" in data:
-						t_color = data.get("COLOR")
-						if t_color in self.colors:
-							client_color = t_color
-							if "UNAME" not in data:
-								conn.sendall(("<|ACK|>" + Fore.GREEN + "[SERVER] Color changed successfully").encode("utf-8"))
-								print(f"[_client_handle] Sent Acknowledge for color change (success)")
-						else:
-							if "UNAME" not in data:
-								conn.sendall(("<|ACK|>" + Fore.RED + "[SERVER] Invalid color selected").encode("utf-8"))
-								print(f"[_client_handle] Sent Acknowledge for color change (Invalid)")
-					if "UNAME" in data and "COLOR" in data and "VERSION" in data:
-						ackCode = "<|ACK|>"
-						for i, k in enumerate(self.command2packets):
-							comm = self.command2packets[k]['command']
-							packet = self.command2packets[k]['template']
-							ackCode += f"{',' if i != 0 else ''}{comm}:{packet}"
-						ackCode += "<|END_ACK|>"
-						conn.sendall(ackCode.encode("utf-8"))
-						print(f"[_client_handle] Sent Acknowledge for setting change")
-						with self.message_lock:
-							self.message_queue.append(f"{self.colors['green']}{client_uname} has joined the chat!")
+					client_uname, client_color = self.handle_settingChange(data, conn, client_uname, client_color)
 		except socket.error as se:
-			print(f"[_client_handle] Error: Socket Error: {se}")
+			self.print(f"[_client_handle] Error: Socket Error: {se}")
 			with self.message_lock:
 				self.message_queue.append(f"{self.colors['red']}{client_uname} has left the chat!")
 		except Exception as e:
-			print(f"[_client_handle] FATAL EXCEPTION: {e}")
+			self.print(f"[_client_handle] FATAL EXCEPTION: {e}")
 			with self.message_lock:
 				self.message_queue.append(f"{self.colors['red']}{client_uname} has left the chat!")
-		log = sh.stop_redirect()
-		if log:
-			with self.log_lock:
-				self.logs.append(f'[_client_handle] for {addr}:\n- ' + log.replace('\n[','\n- ['))
 
 	def stop(self):
 		self.running = False
