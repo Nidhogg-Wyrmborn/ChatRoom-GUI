@@ -23,7 +23,7 @@ class Client:
 	CODE = 1
 	DEBUG = 2
 
-	VERSION = "0.1.0" # Release.Major.Minor
+	VERSION = "0.2.0" # Release.Major.Minor
 
 	def __init__(self):
 		self.closed = True

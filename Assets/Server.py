@@ -19,7 +19,7 @@ except ImportError as IE:
 
 class Server:
 
-	VERSION = "0.1.0" # Release.Major.Minor
+	VERSION = "0.2.0" # Release.Major.Minor
 
 	def __init__(self, host: str = "0.0.0.0", port: int = 65242):
 		self.redirect()
@@ -147,7 +147,7 @@ class Server:
 	def handle_settingChange(self, data, conn, client_uname, client_color):
 		if "VERSION" in data:
 			if not version_check(self.VERSION, data.get("VERSION")):
-				conn.sendall(("<|EOF|>" + Fore.RED + "[SERVER] INVALID VERSION").encode("utf-8"))
+				conn.sendall(("<|EOF|>" + Fore.RED + f"[SERVER] INVALID VERSION! Expected: {self.VERSION}").encode("utf-8"))
 				conn.close()
 				raise Exception("BAD VERSION")
 		if "UNAME" in data:
