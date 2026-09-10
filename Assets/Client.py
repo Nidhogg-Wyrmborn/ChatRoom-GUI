@@ -34,6 +34,7 @@ class Client:
 		self.tLimit = 3
 		self.marker_pattern = re.compile(r"<\|.*?\|>")
 		self.socket = self.newSock()
+		self.req_name = "<|GET_NAME|>"
 
 	def newSock(self):
 		return socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -58,8 +59,22 @@ class Client:
 
 		return servers
 
-	def get_server_name(self, server: tuple) -> str:
-		return server[0]
+	def get_server_name(self, server: tuple, timeout: float = 1.0) -> str:
+		try:
+			name_pattern = r"<\|ACK\|>(?P<name>.*?)<\|END_ACK\|>"
+			with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+				s.settimeout(timeout)
+				s.connect(server)
+				s.sendall(self.req_name.encode("utf-8"))
+				result = s.recv(1024).decode('utf-8')
+				match = re.fullmatch(name_pattern, result)
+				if match:
+					return match.group("name")
+				else:
+					return server[0]
+		except Exception:
+			pass
+		return None
 
 	@staticmethod
 	def _check_ip_port(ip, port, timeout=1.0):

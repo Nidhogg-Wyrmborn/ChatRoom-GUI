@@ -248,7 +248,9 @@ class ClientUI(GUI.GUI):
         self.aServer = {}
         for server in servers:
             # self.display_system_message(f"\t{server}")
-            self.aServer[self.client.get_server_name(server)] = server
+            server_name = self.client.get_server_name(server)
+            self.display_system_message(f"[CLIENT] Found: {server_name} at {server[0]}:{server[1]}")
+            self.aServer[server_name] = server
         self._update_server_menu()
         # self.display_system_message("[CLIENT] Server List Updated!")
 
