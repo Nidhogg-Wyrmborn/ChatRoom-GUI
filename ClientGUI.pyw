@@ -38,6 +38,9 @@ class ClientUI(GUI.GUI):
         client_menu.add_command(label="Disconnect from Server", command=self.disconnect_from_server)
         client_menu.add_command(label="Scan for Server", command=self.scan_for_server)
         client_menu.add_separator()
+        client_menu.add_command(label="Set Default Username", command=self.set_name)
+        client_menu.add_command(label="Set Default Color", command=self.set_color)
+        client_menu.add_separator()
         client_menu.add_command(label="Quit", command=self.root.quit)
         menubar.add_cascade(label="Client", menu=client_menu)
 
@@ -261,6 +264,22 @@ class ClientUI(GUI.GUI):
                 msg = self.client.getMsg()
                 if msg:
                     self.display_system_message(msg)
+
+    def set_name(self):
+        value = simpledialog.askstring("Username", f"Please enter a default username")
+        if value:
+            self.uName = value
+
+    def set_color(self):
+        av = [
+            "white",
+            "red",
+            "green",
+            "yellow"
+        ]
+        value = ask_dropdown(self.root, "Default Color", f"Select a default color", av)
+        if value:
+            self.color = value
 
 if __name__ == '__main__':
     root = tk.Tk()
