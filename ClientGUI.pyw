@@ -4,6 +4,7 @@ try:
     from Assets.utils import check_allowed_values, ask_dropdown, create_packet
     import threading
     import re
+    from Assets import GUI
     from tkinter import ttk, messagebox, simpledialog
     from Assets.Ansi_Text_Box import ANSIText
 except ImportError as IE:
@@ -12,23 +13,17 @@ except ImportError as IE:
     quit()
 
 
-class ClientUI:
+class ClientUI(GUI.GUI):
     def __init__(self, root: tk.Tk, client: Client.Client, uName: str):
-        self.root = root
         self.client = client
         self.version = self.client.VERSION
         self.uName = uName
-        self.root.title("Client Interface")
-        self.root.geometry("600x450")
-        self.root.minsize(400,300)
         self.server_commands = ["No server connected"]
         self.command2packet = {}
         self.aServer = {}
         self.color = "white"
-        self.ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-
-        self._create_menu_bar()
-        self._create_widgets()
+        super().__init__(root, "Client")
+        self.root.title("Client")
 
     def _create_menu_bar(self):
         menubar = tk.Menu(self.root)
@@ -42,6 +37,9 @@ class ClientUI:
         client_menu.add_cascade(label="Connect to Server", menu=self.server_submenu)
         client_menu.add_command(label="Disconnect from Server", command=self.disconnect_from_server)
         client_menu.add_command(label="Scan for Server", command=self.scan_for_server)
+        client_menu.add_separator()
+        client_menu.add_command(label="Set Default Username", command=self.set_name)
+        client_menu.add_command(label="Set Default Color", command=self.set_color)
         client_menu.add_separator()
         client_menu.add_command(label="Quit", command=self.root.quit)
         menubar.add_cascade(label="Client", menu=client_menu)
@@ -253,7 +251,9 @@ class ClientUI:
         self.aServer = {}
         for server in servers:
             # self.display_system_message(f"\t{server}")
-            self.aServer[self.client.get_server_name(server)] = server
+            server_name = self.client.get_server_name(server)
+            self.display_system_message(f"[CLIENT] Found: {server_name} at {server[0]}:{server[1]}")
+            self.aServer[server_name] = server
         self._update_server_menu()
         # self.display_system_message("[CLIENT] Server List Updated!")
 
@@ -264,6 +264,22 @@ class ClientUI:
                 msg = self.client.getMsg()
                 if msg:
                     self.display_system_message(msg)
+
+    def set_name(self):
+        value = simpledialog.askstring("Username", f"Please enter a default username")
+        if value:
+            self.uName = value
+
+    def set_color(self):
+        av = [
+            "white",
+            "red",
+            "green",
+            "yellow"
+        ]
+        value = ask_dropdown(self.root, "Default Color", f"Select a default color", av)
+        if value:
+            self.color = value
 
 if __name__ == '__main__':
     root = tk.Tk()
