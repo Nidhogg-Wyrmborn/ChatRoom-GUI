@@ -196,12 +196,20 @@ class Server:
 		try:
 			data = conn.recv(1024)
 
+			if not data:
+				log = sh.stop_redirect()
+				if log:
+					with self.log_lock:
+						self.logs.append(f'[_client_handle] for {addr}:\n- ' + log.replace('\n[','\n- ['))
+				return
+
 
 			message = data.decode("utf-8")
 			if message.upper().startswith("<|GET_NAME|>"):
 				conn.sendall(f"<|ACK|>{self.name}<|END_ACK|>".encode("utf-8"))
 				self.print("[_client_handle] Sent name to client")
 				conn.close()
+				error = False
 				return
 
 			data = dict(re.findall(self.kv_pattern, message))
@@ -211,8 +219,8 @@ class Server:
 				self.print("[_client_handle] Waiting for data!")
 				data = conn.recv(1024)
 
-				# if not data:
-				# 	break
+				if not data:
+					break
 
 				message = data.decode("utf-8")
 				self.print(f"[_client_handle] Received: {message}")
@@ -224,20 +232,19 @@ class Server:
 				
 				else:
 					client_uname, client_color = self.handle_settingChange(data, conn, client_uname, client_color)
+			error = False
 
 		except socket.error as se:
 			self.print(f"[_client_handle] Error: Socket Error: {se}")
-			with self.message_lock:
-				self.message_queue.append(f"{self.colors['red']}{client_uname} has left the chat!")
-
+			error = True
 		except Exception as e:
 			self.print(f"[_client_handle] FATAL EXCEPTION: {e}")
-			with self.message_lock:
-				self.message_queue.append(f"{self.colors['red']}{client_uname} has left the chat!")
+			error = True
 		finally:
 			self.print(f"[_client_handle] Handle has Closed")
-			with self.message_lock:
-				self.message_queue.append(f"{self.colors['red']}{client_uname} has left the chat!")
+			if error:
+				with self.message_lock:
+					self.message_queue.append(f"{self.colors['red']}{client_uname} has left the chat!")
 		log = sh.stop_redirect()
 		if log:
 			with self.log_lock:
