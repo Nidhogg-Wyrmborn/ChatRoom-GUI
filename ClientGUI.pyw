@@ -4,6 +4,7 @@ try:
     from Assets.utils import check_allowed_values, ask_dropdown, create_packet
     import threading
     import re
+    from Assets import GUI
     from tkinter import ttk, messagebox, simpledialog
     from Assets.Ansi_Text_Box import ANSIText
 except ImportError as IE:
@@ -12,23 +13,17 @@ except ImportError as IE:
     quit()
 
 
-class ClientUI:
+class ClientUI(GUI.GUI):
     def __init__(self, root: tk.Tk, client: Client.Client, uName: str):
-        self.root = root
         self.client = client
         self.version = self.client.VERSION
         self.uName = uName
-        self.root.title("Client Interface")
-        self.root.geometry("600x450")
-        self.root.minsize(400,300)
         self.server_commands = ["No server connected"]
         self.command2packet = {}
         self.aServer = {}
         self.color = "white"
-        self.ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-
-        self._create_menu_bar()
-        self._create_widgets()
+        super().__init__(root, "Client")
+        self.root.title("Client")
 
     def _create_menu_bar(self):
         menubar = tk.Menu(self.root)
@@ -42,6 +37,9 @@ class ClientUI:
         client_menu.add_cascade(label="Connect to Server", menu=self.server_submenu)
         client_menu.add_command(label="Disconnect from Server", command=self.disconnect_from_server)
         client_menu.add_command(label="Scan for Server", command=self.scan_for_server)
+        client_menu.add_separator()
+        client_menu.add_command(label="Set Default Username", command=self.set_name)
+        client_menu.add_command(label="Set Default Color", command=self.set_color)
         client_menu.add_separator()
         client_menu.add_command(label="Quit", command=self.root.quit)
         menubar.add_cascade(label="Client", menu=client_menu)
@@ -170,14 +168,32 @@ class ClientUI:
             else:
                 self.display_system_message(ack.replace("<|ACK|>",""))
 
+    def direct_connect_to_server(self):
+        server = simpledialog.askstring("Direct Connect", f"Please enter an IP and port:")
+        addr = server.split(":", 1)[0]
+        port = server.split(":", 1)[1]
+        try:
+            port = int(port)
+        except:
+            self.display_system_message("[CLIENT] WARNING: Port is not an Integer!")
+            return
+        self.connect_to_server("External Server", (addr, port))
+
     # Menu Event Handlers
-    def connect_to_server(self, s):
+    def connect_to_server(self, s, addr: tuple = None):
         if self.client.is_connected():
             self.display_system_message("[CLIENT] WARNING: Already Connected to Server!")
             return
         # self.display_system_message("[CLIENT] WARNING: Connect To Server Not Completed Yet!")
-        self.display_system_message(f"[DEBUG] SELECTED: {self.aServer[s]}")
-        addr, port = self.aServer[s]
+        if addr == None:
+            self.display_system_message(f"[DEBUG] SELECTED: {self.aServer[s]}")
+            addr, port = self.aServer[s]
+        else:
+            try:
+                addr, port = addr[0], addr[1]
+            except Exception as e:
+                self.display_system_message(f"[CLIENT] WARNING: {e}")
+                return
         self.client.connect(addr, port)
 
         self.recv_thread = threading.Thread(target=self.client.recv, args=(), daemon=True)
@@ -244,6 +260,11 @@ class ClientUI:
                 label=server,
                 command=lambda s=server: self.connect_to_server(s)
             )
+        self.server_submenu.add_separator()
+        self.server_submenu.add_command(
+            label="Direct Connect",
+            command=self.direct_connect_to_server
+        )
 
     # Server Scanner Helpers
     def threaded_server_scanner(self):
@@ -253,7 +274,9 @@ class ClientUI:
         self.aServer = {}
         for server in servers:
             # self.display_system_message(f"\t{server}")
-            self.aServer[self.client.get_server_name(server)] = server
+            server_name = self.client.get_server_name(server)
+            self.display_system_message(f"[CLIENT] Found: {server_name} at {server[0]}:{server[1]}")
+            self.aServer[server_name] = server
         self._update_server_menu()
         # self.display_system_message("[CLIENT] Server List Updated!")
 
@@ -264,6 +287,22 @@ class ClientUI:
                 msg = self.client.getMsg()
                 if msg:
                     self.display_system_message(msg)
+
+    def set_name(self):
+        value = simpledialog.askstring("Username", f"Please enter a default username")
+        if value:
+            self.uName = value
+
+    def set_color(self):
+        av = [
+            "white",
+            "red",
+            "green",
+            "yellow"
+        ]
+        value = ask_dropdown(self.root, "Default Color", f"Select a default color", av)
+        if value:
+            self.color = value
 
 if __name__ == '__main__':
     root = tk.Tk()

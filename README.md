@@ -43,3 +43,9 @@ To run a client there are 2 methods:
 ## Error Reporting:
 
 If you have found an error, please report it either in the discord forum or in the Issues tracker
+
+## Documentation
+
+To check documentation... I'm working on it :P
+
+[Documentation](./DOCUMENTATION.md)
