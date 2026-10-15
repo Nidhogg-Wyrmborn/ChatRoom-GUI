@@ -197,6 +197,10 @@ class Server:
 			print(f"[_client_handle] FATAL EXCEPTION: {e}")
 			with self.message_lock:
 				self.message_queue.append(f"{self.colors['red']}{client_uname} has left the chat!")
+		finally:
+			print(f"[_client_handle] Handle has Closed")
+			with self.message_lock:
+				self.message_queue.append(f"{self.colors['red']}{client_uname} has left the chat!")
 		log = sh.stop_redirect()
 		if log:
 			with self.log_lock:
