@@ -168,14 +168,32 @@ class ClientUI(GUI.GUI):
             else:
                 self.display_system_message(ack.replace("<|ACK|>",""))
 
+    def direct_connect_to_server(self):
+        server = simpledialog.askstring("Direct Connect", f"Please enter an IP and port:")
+        addr = server.split(":", 1)[0]
+        port = server.split(":", 1)[1]
+        try:
+            port = int(port)
+        except:
+            self.display_system_message("[CLIENT] WARNING: Port is not an Integer!")
+            return
+        self.connect_to_server("External Server", (addr, port))
+
     # Menu Event Handlers
-    def connect_to_server(self, s):
+    def connect_to_server(self, s, addr: tuple = None):
         if self.client.is_connected():
             self.display_system_message("[CLIENT] WARNING: Already Connected to Server!")
             return
         # self.display_system_message("[CLIENT] WARNING: Connect To Server Not Completed Yet!")
-        self.display_system_message(f"[DEBUG] SELECTED: {self.aServer[s]}")
-        addr, port = self.aServer[s]
+        if addr == None:
+            self.display_system_message(f"[DEBUG] SELECTED: {self.aServer[s]}")
+            addr, port = self.aServer[s]
+        else:
+            try:
+                addr, port = addr[0], addr[1]
+            except Exception as e:
+                self.display_system_message(f"[CLIENT] WARNING: {e}")
+                return
         self.client.connect(addr, port)
 
         self.recv_thread = threading.Thread(target=self.client.recv, args=(), daemon=True)
@@ -242,6 +260,11 @@ class ClientUI(GUI.GUI):
                 label=server,
                 command=lambda s=server: self.connect_to_server(s)
             )
+        self.server_submenu.add_separator()
+        self.server_submenu.add_command(
+            label="Direct Connect",
+            command=self.direct_connect_to_server
+        )
 
     # Server Scanner Helpers
     def threaded_server_scanner(self):
