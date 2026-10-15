@@ -211,8 +211,8 @@ class Server:
 				self.print("[_client_handle] Waiting for data!")
 				data = conn.recv(1024)
 
-				if not data:
-					break
+				# if not data:
+				# 	break
 
 				message = data.decode("utf-8")
 				self.print(f"[_client_handle] Received: {message}")
@@ -234,17 +234,15 @@ class Server:
 			self.print(f"[_client_handle] FATAL EXCEPTION: {e}")
 			with self.message_lock:
 				self.message_queue.append(f"{self.colors['red']}{client_uname} has left the chat!")
-<<<<<<< HEAD
 		finally:
-			print(f"[_client_handle] Handle has Closed")
+			self.print(f"[_client_handle] Handle has Closed")
 			with self.message_lock:
 				self.message_queue.append(f"{self.colors['red']}{client_uname} has left the chat!")
 		log = sh.stop_redirect()
 		if log:
 			with self.log_lock:
 				self.logs.append(f'[_client_handle] for {addr}:\n- ' + log.replace('\n[','\n- ['))
-=======
->>>>>>> afb6d59562c6f91c6860e6a71f86dff51a00c5cb
+
 
 	def stop(self):
 		self.running = False
