@@ -37,7 +37,9 @@ class Client:
 		self.req_name = "<|GET_NAME|>"
 
 	def newSock(self):
-		return socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s.settimeout(3)
+		return s
 
 	def find_server(self, port: int = 65242):
 		# find any servers that are active
